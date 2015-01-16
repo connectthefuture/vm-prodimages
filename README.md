@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Vagrant-Puppet-Django
 
 This is a Vagrant Ubuntu (Precise64) box with a single Puppet manifests file (no modules) for Django development.
@@ -40,3 +41,7 @@ default-character-set = utf8
 character-set-server = utf8
 collation-server = utf8_general_ci
 ```
+=======
+# vm-prodimages
+vagrant vm for prodimages tests
+>>>>>>> a565445ac73b5281ecf7122fafb0f9f25cbfbc84
