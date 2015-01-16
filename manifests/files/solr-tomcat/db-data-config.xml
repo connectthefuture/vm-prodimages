@@ -1,0 +1,53 @@
+<!-- ## /usr/share/solr/solr/conf/schema.xml -->
+<field name="id" type="string" indexed="true" stored="true" required="true"/>
+<field name="author" type="string" indexed="true" stored="true" multiValued="true"/>
+<field name="comments" type="text" indexed="true" stored="true" multiValued="false"/>
+<field name="keywords" type="text" indexed="true" stored="true" multiValued="false"/>
+<field name="contents" type="text" indexed="true" stored="true" multiValued="false"/>
+<field name="title" type="text" indexed="true" stored="true" multiValued="false"/>
+<field name="revision_number" type="string" indexed="true" stored="true" multiValued="false"/>
+<dynamicField name="ignored_*" type="ignored" indexed="false" stored=" false"multiValued="true"/>
+
+<!--/usr/share/solr/solr/conf/solrconfig.xml-->
+<requestHandler name="/update/extract" class="org.apache.solr.handler.extraction.ExtractingRequestHandler">
+  <lst name="defaults">
+    <str name="fmap.content">contents</str>
+    <str name="lowernames">true</str>
+    <str name="uprefix">ignored_</str>
+    <str name="captureAttr">true</str>
+  </lst>
+</requestHandler>
+<!--
+#First of all, copy the appropriate libraries to the WEB-INF directory of your Solr application. You have to copy all the libraries from the contrib/dataimporthandler/libs directory.
+#Next, we need to modify the solrconfig.xml file. You should add an entry like this:
+#### /usr/share/solr/solr/conf/solrconfig.xml-->
+<requestHandler name="/dataimport" class="org.apache.solr.handler.dataimport.DataImportHandler">
+<lst name="defaults">
+  <str name="config">db-data-config.xml</str>
+</lst>
+</requestHandler>
+<!--
+#Next, we create the db-data-config.xml file. It should have contents like the following example:
+## db-data-config.xml-->
+<dataConfig>
+<dataSource driver="org.mysql.Driver" url="jdbc:mysql://localhost:3301/www_django" user="django" password="django" />
+  <document>
+    <entity name="user" query="SELECT user_id, user_name from users">
+      <field column="user_name" name="name" />
+        <entity name="user_desc" query="select desc from users_description where user_id=${user.user_id}">
+          <field column="desc" name="description" />
+        </entity>
+    </entity>
+  </document>
+</dataConfig>
+<!--
+#### /usr/share/solr/solr/conf/schema.xml-->
+<field name="id" type="string" indexed="true" stored="true" required="true"/>
+<field name="name" type="text" indexed="true" stored="true" />
+<field name="user_desc" type="text" indexed="true" stored="true"/>
+
+
+
+
+
+

@@ -1,0 +1,72 @@
+server {
+  listen       80;
+
+  server_name <%= @domain_name %>;
+  #root   /var/www/htdocs/<%= @project %>;
+  root   /home/<%= @user %>/virtualenvs/<%= @domain_name %>/src/<%= @project %>;
+
+  charset utf-8;
+  #charset koi8-r;
+
+  access_log  /var/log/nginx/<%= @domain_name %>.access.log;
+  error_log  /var/log/nginx/<%= @domain_name %>.error.log;
+
+	#location / {
+	#    index  index.html index.htm index.php index.py;
+	#}
+
+  ### root url uwsgi sock
+	location / {
+		uwsgi_pass unix:/tmp/uwsgi/<%= @project %>.sock;
+		include uwsgi_params;
+	}
+
+  ### local
+	location /static/ {
+		alias /home/<%= @user %>/virtualenvs/<%= @domain_name %>/src/<%= @project %>/var/static/;
+	}
+
+  location /admin/media/ {
+  ## this changes depending on your python version
+    root /home/<%= @user %>/virtualenvs/<%= @project %>/lib/python2.7/site-packages/django/contrib;
+  }
+
+  ## file6
+  ## MEDIA_ROOT -- UPLOADS
+  location ~* /media/(uploads)/(images|docs)/(.*) {
+    # root  /home/johnb/virtualenvs/DJDAM/src/djdam/var/;
+    root /var/www/srv/media/$1/$2/$3;
+  }
+  
+  location ~* /studio_thumbs/(.*)/(.*)$ {
+  # alias /var/www/srv/media/$1/$2;
+    alias /mnt/Production_Raw/.zImages_1/$1/$2;
+  }
+
+  location ~* /studio_raw/ {
+    alias /mnt/Production_Raw/.zImages_1/;
+  }
+  
+  # ### file7
+  location ~* /zImages/(.*)/(.*)$ {
+    alias /mnt/Post_Ready/zImages_1/$1/$2;
+
+  }
+  
+  location ~* /Retouch_Still/(.*)/(.*)/(.*)$ {
+    alias /mnt/Post_Ready/Retouch_Still/$1/$2/$3;
+  }
+  
+  location ~* /Retouch_Fashion/(.*)/(.*) {
+    alias /mnt/Post_Ready/Retouch_Fashion/$1/$2;
+  }
+
+  #error_page  404              /404.html;
+
+  error_page   500 502 503 504  /50x.html;
+  location = /50x.html {
+    root   html;
+  }
+
+	#include /etc/nginx/common/php;
+}
