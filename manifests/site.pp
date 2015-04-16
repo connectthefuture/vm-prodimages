@@ -10,20 +10,28 @@ $domain_name         = 'DJDAM' # Used in nginx, uwsgi and virtualenv directory
 $db_name             = 'www_django' # Mysql database name to create
 $db_user             = 'root' # Mysql username to create
 $db_password         = 'mysql' # Mysql password for $db_user
-$mysql_root_password = 'mysql' # Mysql password for root, to change from no password
+$mysql_root_password = 'mysql' # Mysql admin password for root, to change from no password
+$mongodb_dbname         = 'images' # Mongo database name to create
+$mongodb_collectname    = 'fs.files' # Mongo collection name using fs.files if making grid.fs to create
+$mongodb_mongouser      = 'mongo' # Mongo Standard user username to create
+$mongodb_mongopassword  = 'mongo' # Mongo Standard password for $db_user
+$mongodb_adminuser      = 'johnb' # Mongo Admin user username to create
+$mongodb_adminpassword  = 'admin' # Mongo Admin password for $db_user
+
 
 Exec { path => "/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:/home/${user}/virtualenvs/${domain_name}/bin:/home/${user}/virtualenvs/${domain_name}/src/${project}" }
 
+import 'nodes.pp'
 #include ::ntp
 include timezone
 include user
 include apt
 include apache2
-include nginx
+#include nginx
 include uwsgi
 include mysql
 include php
-include phpmyadmin
+#include phpmyadmin
 #include tomcat7-solr
 #include solr-tomcat
 #include solr-jetty
@@ -103,7 +111,7 @@ class user {
     require => Exec['add user'],
     before => [File['srv dir']],
   }
-  
+
   file { 'srv dir':
     #path => "/home/${user}/Sites/${domain_name}/media",
     path => "/var/www/srv",
@@ -319,7 +327,7 @@ class mysql {
     enable => true,
     require => Package['mysql-server'],
     subscribe => [Package["mysql-server"]], #, File["my.cnf"]],
-  }  
+  }
 
   # Set up the root user and passwd
   exec { 'set-mysql-root-password':
@@ -374,7 +382,7 @@ class python {
     ensure => latest,
     require => Class['apt'],
   }
-  
+
   package { 'ipython':
     ensure => latest,
     require => Class['apt'],
@@ -383,13 +391,19 @@ class python {
   package { 'pkg-config':
     ensure => latest,
     require => Class['apt'],
-  } 
-    
+  }
+
   package { 'python-mysqldb':
     ensure => latest,
     require => Class['apt'],
   }
-  
+
+  ## New command jan20
+  package { 'python-setuptools':
+    ensure => latest,
+    require => Class['apt'],
+  }
+
   # package { 'python-mysql.connector':
   #   ensure => latest,
   #   require => Class['apt'],
@@ -397,7 +411,7 @@ class python {
 
   exec { 'install-distribute':
     command => 'curl http://python-distribute.org/distribute_setup.py | python',
-    require => Package['python-dev', 'curl']
+    require => Package['python-dev', 'curl', 'python-setuptools']
   }
 
   exec { 'install-pip':
@@ -423,7 +437,7 @@ class phpmyadmin {
   }
 
   file { 'link-to-apache':
-    target => '/etc/apache2/conf.d/phpadmin.conf',  
+    target => '/etc/apache2/conf.d/phpadmin.conf',
     ensure => link,
     owner => "root",
     group => "www-data",
@@ -435,7 +449,7 @@ class phpmyadmin {
     path => "/etc/phpmyadmin/config-db.php",
     source => "${inc_file_path}/phpmyadmin/config-db.php",
     require => [
-        Package['phpmyadmin'], 
+        Package['phpmyadmin'],
         Class['php', 'mysql', 'apache2'],
         ],
   }
@@ -484,7 +498,7 @@ class php {
     group => "root",
     mode => 644,
     require => [
-                Class["apache2"], 
+                Class["apache2"],
                 Package["php5"],
                 ],
   }
@@ -498,7 +512,7 @@ class php {
       group => "root",
       mode => 644,
       require => [
-                  Class["apache2"], 
+                  Class["apache2"],
                   Package["php5"],
                   ],
   }
@@ -556,7 +570,7 @@ class imgdeps {
     command => 'wget -O Image-ExifTool-9.47.tar.gz http://www.sno.phy.queensu.ca/~phil/exiftool/Image-ExifTool-9.47.tar.gz && gzip -dc Image-ExifTool-9.47.tar.gz | tar -xf - && cd Image-ExifTool-9.47/ && perl Makefile.PL && make test && sudo make install',
     cwd => '/root',
     user => 'root',
-    require => Package['libjpeg-dev'],    
+    require => Package['libjpeg-dev'],
   }
 
   package { ['python-imaging', 'libjpeg-dev', 'libpng-dev', 'libtiff-dev', 'liblcms1-dev', 'libsvga1-dev', 'librsvg2-dev', 'libfreetype6-dev', 'libexif-dev', 'libglib2.0-dev', 'libexiv2-dev']:
@@ -604,7 +618,7 @@ class imgdeps {
     command => 'wget -O gexiv2.tar.xz http://ftp.gnome.org/pub/gnome/sources/gexiv2/0.7/gexiv2-0.7.0.tar.xz && tar -xvf gexiv2.tar.xz && cd gexiv2-0.7.0 && ./configure && make && make install',
     require => Package['libexiv2-dev', 'libglib2.0-dev'],
     cwd => '/root',
-    user => 'root',    
+    user => 'root',
   }
 }
 
@@ -613,7 +627,7 @@ class imgdeps {
 #  package { 'mongodb':
 #    ensure => latest,
 #    require => Class['apt'],
-#  }  
+#  }
 #}
 
 #class mongodb(
@@ -627,7 +641,7 @@ class imgdeps {
 class mongodb{
 
   exec { 'add-mongo-user':
-    command => "sudo useradd -r -U mongo",
+    command => "sudo useradd -r -U ${mongodb_mongouser}",
     #unless => "id -u ${user}",
     user => "root",
     environment => ['MONGOHOME=/data/db',
@@ -638,19 +652,19 @@ class mongodb{
     #path => "/home/${user}/Sites/${domain_name}/media",
     path => "/data",
     ensure => directory,
-    owner => 'mongo',
-    group => 'mongo',
+    owner => "${mongodb_mongouser}",
+    group => "${mongodb_mongouser}",
     mode => 0755,
     require => Exec['add-mongo-user'],
     before => File['data-db-mkdir'],
   }
-  
+
   file { 'data-db-mkdir':
     #path => "/home/${user}/Sites/${domain_name}/media",
     path => "/data/db",
     ensure => directory,
-    owner => 'mongo',
-    group => 'mongo',
+    owner => "${mongodb_mongouser}",
+    group => "${mongodb_mongouser}",
     mode => 0755,
     require => Exec['add-mongo-user'],
   }
@@ -686,13 +700,29 @@ class mongodb{
     require => Package["mongodb-10gen"],
   }
 
-#  file { "/etc/init/mongodb.conf":
-#    content => template("mongodb/mongodb.conf.erb"),
-#    mode => "0644",
-#    notify => Service["mongodb"],
-#    require => Package["mongodb-10gen"],
-#  }
+  ## Init mongo conf
+  file { '/etc/init/mongodb.conf':
+    path => "/etc/init/mongodb.conf",
+    source => "${inc_file_path}/mongodb/init/init_mongodb.conf",
+    mode => 0644,
+    owner => "root",
+    notify => Service["mongodb"],
+    require => Package["mongodb-10gen"],
+  }
 
+  ## Primary mongo conf
+  file { '/etc/mongodb.conf':
+    path => "/etc/mongodb.conf",
+    source => "${inc_file_path}/mongodb/mongodb.conf",
+    #    content => template("mongodb/mongodb.conf.erb"),
+    mode => 0644,
+    owner => "root",
+    notify => Service["mongodb"],
+    require => [
+            Package["mongodb-10gen"],
+            File['/etc/init/mongodb.conf'],
+            ],
+  }
 }
 
 
@@ -726,9 +756,9 @@ class puppet-initial-commands {
     require => [Class['apt'], Package['puppet']],
     #path => "/usr/bin:/usr/sbin:/bin:/usr/local/bin",
     #command => "sudo apt-get install puppet-dashboard",
-    #refreshonly => true, 
+    #refreshonly => true,
   }
-  
+
   exec { "update-puppet-ppa":
     require => Package['wget'],
     path => "/usr/bin:/usr/sbin:/bin:/usr/local/bin",
@@ -736,9 +766,9 @@ class puppet-initial-commands {
             sudo dpkg -i puppetlabs-release-precise.deb;\
             sudo apt-get update;",
     before => Package['puppet-dashboard'],
-    #refreshonly => true, 
+    #refreshonly => true,
   }
-  
+
   exec {"puppet-modules-ex42":
     require => Package['git'],
     command => "git clone --recursive https://github.com/example42/puppet-modules-nextgen.git /etc/puppet/modules",
@@ -970,7 +1000,7 @@ class solr-tomcat {
     owner => "root",
     group => "root";
   }
-  
+
   exec { 'add-solr-user':
     command => "sudo useradd -r -U solr",
     #unless => "id -u ${user}",
@@ -985,7 +1015,7 @@ class solr-tomcat {
     require => Exec['add-solr-user'],
     user => "root",
     before => Exec['chown-solr-dirs'],;
-  
+
   'download-solr':
     require => File['make-opt-solr'],
     before => Exec['unpack-solr'],
@@ -1006,7 +1036,7 @@ class solr-tomcat {
     user => "root",
     cwd => "/opt/solr",
     command => "tar -xvzf /opt/solr/solr.tgz -C /opt/solr/;";
-  
+
   'copy-solr-files-solrhome':
     require => Exec['unpack-solr'],
     before => Service['tomcat6'],
@@ -1022,10 +1052,10 @@ class solr-tomcat {
     user => "root",
     cwd => "/opt/solr",
     command => "sudo cp -rf /opt/solr/example/solr/collection1 /opt/solr/example/solr/www_django";
-  
+
   'chown-solr-dirs':
     user => "root",
-    require => [Exec['copy-solr-files-solrhome'], 
+    require => [Exec['copy-solr-files-solrhome'],
                 File['add-core-solrxml']],
     before => Service['tomcat6'],
     path => "/usr/bin:/usr/sbin:/bin:/usr/local/bin",
@@ -1067,7 +1097,7 @@ class solr-tomcat {
     notify => Service['tomcat6'],
     owner => "tomcat6",
     group => "tomcat6",
-  } 
+  }
 
   file { 'mkdir-solr-lib':
     path => "/opt/solr/example/solr/lib",
@@ -1078,14 +1108,14 @@ class solr-tomcat {
     mode => 0755;
   }
 
-  file { 'mysql-connector-solr-jar': 
+  file { 'mysql-connector-solr-jar':
     path => "/opt/solr/example/solr/lib/mysql-connector-java-5.1.26-bin.jar",
-    source => "${inc_file_path}/solr-tomcat/mysql-connector-java-5.1.26-bin.jar",     
+    source => "${inc_file_path}/solr-tomcat/mysql-connector-java-5.1.26-bin.jar",
     ensure => file,
     require => File['mkdir-solr-lib'],
-  }   
+  }
 
-  
+
   file { 'make-data-dirs-in-collection1-core':
     path => "/opt/solr/example/solr/collection1/data",
     ensure => directory,
@@ -1155,7 +1185,7 @@ class redis {
     #before => [File['srv dir'], File['www dir']],
     require => Package['tcl8.5']
   }
-  
+
   exec { "source-make-redis":
     require => Package['wget'],
     path => "/usr/bin:/usr/sbin:/bin:/usr/local/bin",
@@ -1163,7 +1193,7 @@ class redis {
     cwd => "/root",
     user => "root",
     before => Exec['install-redis'],
-    #refreshonly => true, 
+    #refreshonly => true,
   }
 
   exec { "install-redis":
@@ -1173,12 +1203,12 @@ class redis {
     cwd => "/root/redis-stable",
     user => "root",
     #before => Package['install-redis'],
-    #refreshonly => true, 
+    #refreshonly => true,
   }
-  
+
   file { "/etc/init/redis-server":
     path => "/etc/init/redis-server.conf",
-    source => "${inc_file_path}/redis/_etc_init_redis-server.conf",     
+    source => "${inc_file_path}/redis/_etc_init_redis-server.conf",
     ensure => file,
     require => Exec['install-redis'],
   }
@@ -1195,12 +1225,12 @@ class redis {
 
 
 class tomcat7-solr {
-  package { [ 'tomcat7', 'tomcat7-admin', 'tomcat7-examples',  'openjdk-7-jdk' ] : 
+  package { [ 'tomcat7', 'tomcat7-admin', 'tomcat7-examples',  'openjdk-7-jdk' ] :
     ensure => latest,
     require => Class['apt'],;
   }
-  
-  file {  
+
+  file {
   'make-user-share-solr':
     ensure => directory,
     require => Package['tomcat7'],
@@ -1231,7 +1261,7 @@ class tomcat7-solr {
     user => "root",
     cwd => "/user/share/solr",
     command => "tar -xvzf /user/share/solr/solr.tgz -C /user/share/solr/;";
-  
+
   'copy-solr-files-solrhome':
     require => Exec['unpack-solr'],
     before => Service['tomcat7'],
@@ -1239,9 +1269,9 @@ class tomcat7-solr {
     user => "root",
     cwd => "/user/share/solr",
     command => "sudo cp -rf /user/share/solr/solr-4.6.0/* /user/share/solr;";
-  } 
+  }
 
-  file { 
+  file {
    ## next tells tomcat where to find solr home
   'tomcat7-catalina-localhost-solrxml':
     path => "/etc/tomcat7/Catalina/localhost/solr.xml",
@@ -1308,7 +1338,7 @@ class tomcat7-solr {
     owner => "root",
     group => "tomcat7";
   }
-  
+
   file { 'log4jprops':
     path => "/usr/share/tomcat7/lib/log4j.properties",
     source => "${inc_file_path}/solr-tomcat/_usr_share_tomcat7_lib_log4j.properties",
@@ -1318,7 +1348,7 @@ class tomcat7-solr {
     notify => Service['tomcat7'],
     owner => "tomcat7",
     group => "tomcat7",
-  } 
+  }
 
   file { 'mkdir-solr-lib':
     path => "/usr/share/solr/example/solr/lib",
@@ -1329,12 +1359,12 @@ class tomcat7-solr {
     mode => 0755;
   }
 
-  file { 'mysql-connector-solr-jar': 
+  file { 'mysql-connector-solr-jar':
     path => "/usr/share/solr/example/solr/lib/mysql-connector-java-5.1.26-bin.jar",
-    source => "${inc_file_path}/solr-tomcat/mysql-connector-java-5.1.26-bin.jar",     
+    source => "${inc_file_path}/solr-tomcat/mysql-connector-java-5.1.26-bin.jar",
     ensure => file,
     require => File['mkdir-solr-lib'],
-  }   
+  }
 
   file { 'make-data-dirs-in-collection1-core':
     path => "/usr/share/solr/example/solr/collection1/data",

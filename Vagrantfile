@@ -13,15 +13,15 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # The url from where the 'config.vm.box' box will be fetched if it
   # doesn't already exist on the user's system.
-  config.vm.box_url = "http://files.vagrantup.com/precise32.box"
-  
+  config.vm.box_url = "http://files.vagrantup.com/precise64.box"
+
   # Boot with a GUI so you can see the screen. (Default is headless)
   # config.vm.boot_mode = :gui
 
   config.vm.provider :virtualbox do |vb|
     vb.customize ["modifyvm", :id, "--memory", "2048"]
   end
-  
+
   # Assign this VM to a host-only network IP, allowing you to access it
   # via the IP. Host-only networks can talk to the host machine as well as
   # any other machines on the same network, but cannot be accessed (through this
@@ -35,26 +35,35 @@ Vagrant.configure(VAGRANTFILE_API_VERSION) do |config|
 
   # Forward a port from the guest to the host, which allows for outside
   # computers to access the VM, whereas host only networking does not.
-  config.vm.network :forwarded_port, guest: 80,   host: 8008
-  #config.vm.network :forwarded_port, guest: 22,   host: 2222
-  config.vm.network :forwarded_port, guest: 10000,   host: 10000
+  config.vm.network :forwarded_port, guest: 80,   host: 8080
+  # config.vm.network :forwarded_port, guest: 22,   host: 2222
+  # config.vm.network :forwarded_port, guest: 10000,   host: 10000
   config.vm.network :forwarded_port, guest: 5000, host: 5000
-  config.vm.network :forwarded_port, guest: 8000, host: 8001
-  config.vm.network :forwarded_port, guest: 8080, host: 8888
+  # config.vm.network :forwarded_port, guest: 8000, host: 8001
+  config.vm.network :forwarded_port, guest: 8888, host: 8888
   config.vm.network :forwarded_port, guest: 8082, host: 8082
   config.vm.network :forwarded_port, guest: 8773, host: 8773
   config.vm.network :forwarded_port, guest: 8983, host: 8983
   config.vm.network :forwarded_port, guest: 9000, host: 9000
   config.vm.network :forwarded_port, guest: 3000, host: 3000
-  config.vm.network :forwarded_port, guest: 9999, host: 9999
-  config.vm.network :forwarded_port, guest: 27017, host: 27018
-  config.vm.network :forwarded_port, guest: 3301, host: 3331
+  # config.vm.network :forwarded_port, guest: 9999, host: 9999
+  config.vm.network :forwarded_port, guest: 27017, host: 27117
+  config.vm.network :forwarded_port, guest: 27018, host: 27118
+  config.vm.network :forwarded_port, guest: 3301, host: 3301
 
   # Share an additional folder to the guest VM. The first argument is
   # an identifier, the second is the path on the guest to mount the
   # folder, and the third is the path on the host to the actual folder.
   config.vm.synced_folder "../vdata", "/vagrant_data"
-  #config.vm.synced_folder "../vlinks/MEDIAREPO", "/mnt/MEDIAREPO"
+  # config.vm.synced_folder ENV['HOME'], '/mnt'
+  # config.vm.synced_folder "../vlinks/MEDIAREPO", "/mnt/MEDIAREPO"
+
+
+  # Use current users ssh creds ##
+  # config.ssh.private_key_path = "~/.ssh/id_rsa"
+
+  # Set host name
+  config.vm.hostname = 'prodimages.relic7.org'
 
   # Enable provisioning with Puppet stand alone.  Puppet manifests
   # are contained in a directory path relative to this Vagrantfile.
